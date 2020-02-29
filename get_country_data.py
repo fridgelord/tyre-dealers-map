@@ -4,7 +4,20 @@ import requests
 import os.path
 
 default_data_file = "cow.txt"
-default_url = "https://web.archive.org/web/20150319012353/http://opengeocode.org/cude/download.php?file=/home/fashions/public_html/opengeocode.org/download/cow.txt"
+default_url = ("https://web.archive.org/web/20150319012353",
+               "/http://opengeocode.org/cude/download.php?",
+               "file=/home/fashions/public_html/opengeocode.org/",
+               "download/cow.txt")
+corrections = {"NL": {"minlongitude": 3.358333,
+                      "minlatitute": 50.750417,
+                      },
+               "RU": {"minlongitude": 27.9,
+                      "maxlongitude": 190,
+                      },
+               "PT": {"minlongitude": -9.500552,
+                      "minlatitute": 36.960158,
+                      },
+               }
 
 
 def download_country_data(
@@ -27,6 +40,18 @@ def read_country_csv(filename=default_data_file):
                        skiprows=28,
                        keep_default_na=True,
                        )
+
+
+def correct_extremes(df, corrections_dict):
+    """Remove extremes outside of scope
+    eg. Aruba for NL
+    Tenerife is kept within the scope, PT
+    only inland
+    """
+    for country, attributes in corrections_dict.items():
+        for coordinate, value in attributes.items():
+            df.loc[df.ISO3166A2 == country, coordinate] = value
+    return df
 
 
 def convert_to_dict(df):
@@ -60,7 +85,19 @@ def dump_json(countries, filename='countries.json'):
         json.dump(countries, file)
 
 
-if __name__ == '__main__':
-    download_country_data()
-    df = read_country_csv()
+def get_country_data(
+    url=default_url,
+    filename=default_data_file,
+    force=False,
+    corrections=corrections,
+):
+    download_country_data(url, filename, force)
+    df = read_country_csv(filename)
+    df = correct_extremes(df, corrections)
     country_dict = convert_to_dict(df)
+    return country_dict
+
+
+if __name__ == '__main__':
+    country_dict = get_country_data()
+    dump_json(country_dict)
