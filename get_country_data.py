@@ -43,10 +43,8 @@ def read_country_csv(filename=default_data_file):
 
 
 def correct_extremes(df, corrections_dict):
-    """Remove extremes outside of scope
-    eg. Aruba for NL
-    Tenerife is kept within the scope, PT
-    only inland
+    """Remove extremes outside of scope eg. Aruba for NL
+    Tenerife is kept within the scope, PT only inland
     """
     for country, attributes in corrections_dict.items():
         for coordinate, value in attributes.items():
