@@ -1,3 +1,4 @@
+# import logging as log
 import json
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
@@ -13,6 +14,8 @@ from datetime import datetime
 import pandas as pd
 import get_country_data
 import geopy.distance
+from reppy.robots import Robots # only library that properly parses michelin.pl
+                                # also it's fastest
 
 
 elements = {
@@ -28,11 +31,26 @@ elements = {
 }
 
 
-def site(country_tag, latitude, longtitude, page_no):
+def site(
+    base_url,
+    dealer_locator_url,
+    latitude, 
+    longitude, 
+    country_tag="", 
+    page_no=""
+):
+    if country_tag:
+        country_tag = ("/" + country_tag).replace("//", "/")
+    if page_no != "":
+        page_no = "&page=" + str(page_no) + "&r=0"
     return (
-        f"https://www.goodyear.eu/{country_tag}" +
-        f"/consumer/dealers/results.html?latlng={str(latitude)}" +
-        f",{str(longtitude)}&page={str(page_no)}&r=0"
+        base_url + 
+        country_tag + 
+        dealer_locator_url + 
+        str(latitude) + 
+        "," +
+        str(longitude) +
+        page_no  
     )
 
 
@@ -41,7 +59,14 @@ def open_site(country_tag, latitude, longtitude, page_no=1):
     global driver
     try:
         driver.maximize_window()
-        driver.get(site(country_tag, latitude, longtitude, page_no))
+        driver.get(site(base_url,
+                        dealer_locator_url,
+                        latitude,
+                        longtitude,
+                        country_tag=country_tag,
+                        page_no=page_no,
+                       )
+                  )
         try:
             cookie_consent = driver.find_element_by_class_name("cmp-link__link")
             cookie_consent.click()
@@ -180,16 +205,20 @@ def get_dealers_info(country_name, country, filename, elements_dict):
                 # lat = 50.25052385714285
                 # lon = 16.26666692857143
                 if open_site(country_tag, latitude=lat, longtitude=lon, page_no=i):
-                    dealers_data = get_dealers_info_from_page(
-                        elements_dict, 
-                        filename, 
-                        dealers_data
-                    )
+                    dealers_data = get_dealers_info_from_page(elements_dict, 
+                                                              filename,
+                                                              dealers_data,
+                                                             )
                 else:
                     break
             break
         break
 
+
+
+base_url = "https://www.goodyear.eu"
+dealer_locator_url = "/consumer/dealers/results.html?latlng="
+robots_url = "/robots.txt"
 
 start = datetime.now()
 filename = "dealers_goodyear.csv"
@@ -219,5 +248,19 @@ countries_gy_full = {
 
 
 for country_name, country in countries_gy_full.items():
-    get_dealers_info(country_name, country, filename, elements)
+    robots = Robots.fetch(base_url + robots_url)
+    example_site = site(base_url,
+                        dealer_locator_url,
+                        0,
+                        0,
+                        country["country_tag"],
+                        0,
+                       )
+    if not robots.allowed(example_site, "*"):
+        print("Couldn't scrape {0} for {1}: disallowed by robots.txt".format(
+            base_url, country_name))
+        continue
+    else:
+        print("we're ok")
+        get_dealers_info(country_name, country, filename, elements)
 driver.close()
