@@ -8,6 +8,7 @@ from selenium.common.exceptions import (NoSuchElementException,
                                         # WebDriverException,
                                         )
 from time import sleep
+import re
 
 
 class Country_conti(classes.Country):
