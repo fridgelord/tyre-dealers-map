@@ -62,9 +62,11 @@ class Country_conti(classes.Country):
                 coordinates = self.driver.find_element_by_xpath(self.coordinates_path)
                 coordinates = coordinates.get_attribute("href")
                 coordinates = re.search("\\@(.*)\\/", coordinates).group(1)
+                latitude, longitude = coordinates.split(",")
             except NoSuchElementException:
-                coordinates = ""
-            dealers_data.append(coordinates)
+                latitude, longitude = ("", "")
+            dealers_data.append(latitude)
+            dealers_data.append(longitude)
             dealers_data.insert(0, self.name)
             name_address = " ".join(dealers_data[:3])
             if name_address not in self.dealers_list:

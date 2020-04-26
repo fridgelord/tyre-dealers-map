@@ -133,7 +133,7 @@ class Datafile:
         with open(name, 'w') as fp:
             fp.write(
                 "Country;Dealer_Name;Dealer_Address;Dealer_Phone;"
-                + "Dealer_Mail;Dealer_Website;Dealer_Coordinates;Monday;Tuesday"
+                + "Dealer_Mail;Dealer_Website;Latitude;Longitude;Monday;Tuesday"
                 + ";Wednesday;Thursday;Friday;Saturday;Sunday;Manuf_link\n"
             )
 
