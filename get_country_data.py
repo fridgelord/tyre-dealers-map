@@ -89,6 +89,10 @@ def get_country_data(
     force=False,
     corrections=corrections,
 ):
+    """Download (if necessary) country data
+    and return a dict with countries and
+    their coordinates
+    """
     download_country_data(url, filename, force)
     df = read_country_csv(filename)
     df = correct_extremes(df, corrections)
