@@ -10,6 +10,9 @@ from selenium.common.exceptions import (NoSuchElementException,
 from time import sleep
 import re
 
+COUNTRY_LIST_FILE = "country_list_co.json"
+SWAPFILE = ".continental.swp"
+AREA = 20
 
 class Country_conti(classes.Country):
     data_xpaths = {
@@ -48,6 +51,8 @@ class Country_conti(classes.Country):
         self.driver.switch_to.frame(frame)
         els = self.driver.find_elements_by_xpath(self.dealers_path)
         for el in els:
+            print("getting dealer {el}")
+            # self.driver.execute_script("arguments[0].scrollIntoView();", el)
             el.click()
             dealers_data = [self.get_dealer_info(self.driver, xpaths[0], xpaths[1])
                             for x, xpaths
@@ -61,31 +66,32 @@ class Country_conti(classes.Country):
                 coordinates = ""
             dealers_data.append(coordinates)
             dealers_data.insert(0, self.name)
-            name_address = " ".join(dealers_data[:2])
+            name_address = " ".join(dealers_data[:3])
             if name_address not in self.dealers_list:
                 datafile.append(dealers_data)
                 self.dealers_list.append(name_address)
+            print("coming back")
             self.driver.find_element_by_xpath(self.back_path).click()
+            print("came back")
 
 
 def main():
-    COUNTRY_LIST_FILE = 'country_list_co.json'
-    AREA = 40
-    driver = webdriver.Firefox()
+    # driver = webdriver.Firefox()
+    # driver.maximize_window()
     countries = get_country_data.get_country_data()
 
     with open(COUNTRY_LIST_FILE) as fp:
         countries_co = json.load(fp)
     # country_list = [Country_conti(country_name, countries, countries_co, 500)
-                    # for country_name 
-                    # in countries_co
-                    # # if country_name in countries
-                    # if country_name == "Poland"
-                   # ]
+        # for country_name
+        # in countries_co
+        # # if country_name in countries
+        # if country_name == "Poland"
+            # ]
     f = classes.Datafile("conti.csv")
-    Poland = Country_conti("Poland", countries, countries_co, AREA, driver)
-    if Poland.check_robots():
-        Poland.loop_coordinates(f)
+    with Country_conti("Poland", countries, countries_co, AREA, SWAPFILE) as Poland:
+        if Poland.check_robots():
+            Poland.loop_coordinates(f)
 
 
 if __name__ == "__main__":

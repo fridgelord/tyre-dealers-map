@@ -3,18 +3,20 @@ import re
 from selenium.common.exceptions import (NoSuchElementException,
                                         # TimeoutException,
                                         ElementNotInteractableException,
-                                        # WebDriverException,
+                                        WebDriverException,
                                         )
 from numpy import arange
 from reppy import Robots
+from selenium import webdriver
+import os
 
 
 class Country:
-    def __init__(self, name, geo_dict, manuf_countries_dict, km_step, driver):
+    def __init__(self, name, geo_dict, manuf_countries_dict, km_step, swapfile):
         self.name = name
         self.website = manuf_countries_dict.get(self.name)
-        self.driver = driver
         self.dealers_list = []
+        self.swapfile = swapfile
         try:
             self.min_longitude = geo_dict[self.name]["min_lon"]
             self.min_latitude = geo_dict.get(self.name)["min_lat"]
@@ -27,8 +29,27 @@ class Country:
             self.lon_span = geodistance.distance(self._left_bottom, self._right_bottom).km
             self.lon_step = (self.max_longitude - self.min_longitude) * km_step / self.lon_span
             self.lat_step = (self.max_latitude - self.min_latitude) * km_step / self.lat_span
+            self.restarted_after_error = False
         except KeyError:
             self = None
+
+    def __enter__(self):
+        self.driver = webdriver.Firefox()
+        self.driver.maximize_window()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        print("cleaning..")
+        try:
+            self.driver.close()
+        except WebDriverException:
+            pass
+        try:
+            print("remvoing file")
+            os.remove(self.swapfile)
+        except OSError:
+            print("something wrong with removing")
+            pass
 
     def check_robots(self):
         """ Check if website we want to scrape is available
@@ -47,21 +68,51 @@ class Country:
                 example_url, self.name))
             return False
 
-    def loop_coordinates(self, datafile):
+    def coords_from_swap(self):
+        with open(self.swapfile) as fp:
+            return [float(i) for i in fp.read().split(",")]
+
+    def save_coords_to_swap(self, lat, lon):
+        with open(self.swapfile, 'w') as fp:
+            fp.write(",".join((str(lat), str(lon))))
+
+    def loop_coordinates(self, datafile, start_lat=0.0, start_lon=0.0):
         self.dealers_list = []
-        start = self.min_latitude + self.lat_step / 2 
+        start = self.min_latitude + self.lat_step / 2
         stop = self.max_latitude
         step = self.lat_step
         for lat in arange(start, stop, step):
-            start = self.min_longitude + self.lon_step / 2 
+            start = self.min_longitude + self.lon_step / 2
             stop = self.max_longitude
             step = self.lon_step
             for lon in arange(start, stop, step):
-                # lat = 52.25
-                # lon = 21
-                self.get_dealer_info_manuf(str(lat), str(lon), datafile)
-                # break
-            # break
+                print(f"""
+                      lat: {lat}
+                      lon: {lon}
+                      start_lat: {start_lat}
+                      start_lon: {start_lon}
+                      """
+                     )
+                if lat < start_lat or lon < start_lon:
+                    continue
+                try:
+                    print("trying to get website")
+                    self.get_dealer_info_manuf(str(lat), str(lon), datafile)
+                    self.restarted_after_error = False
+                    start_lat = 0.0
+                    start_lon = 0.0
+                    self.save_coords_to_swap(lat, lon)
+                # except OSError:
+                except Exception as exc:
+                    print("exception handler")
+                    if self.restarted_after_error:
+                        raise exc
+                    else:
+                        start_lat, start_lon = self.coords_from_swap()
+                        self.__exit__(None, None, None)
+                        self.__enter__()
+                        self.restarted_after_error = True
+                        self.loop_coordinates(datafile, start_lat, start_lon)
 
     def get_dealer_info(self, element, xpath_path, attribute):
         try:
